@@ -3,8 +3,7 @@
 require 'spec_helper_acceptance'
 
 describe 'postgresql::server::extension' do
-  # Choose a contrib extension that exists on this distro (name and version
-  # vary, so hard-coding either would be brittle).
+  # Choose a contrib extension that exists on this distro
   def discover_extension
     q = 'SELECT name, default_version FROM pg_available_extensions ' \
         "WHERE name IN ('unaccent', 'pg_visibility', 'pg_repack') ORDER BY name LIMIT 1"
@@ -15,13 +14,21 @@ describe 'postgresql::server::extension' do
   end
 
   it 'creates an extension at an explicit version and is idempotent' do
-    ext, ver = discover_extension
-
-    pp = <<-MANIFEST
-      class { 'postgresql::server': } ->
+    setup_pp = <<-MANIFEST
+      class { 'postgresql::server': }
+      class { 'postgresql::server::contrib': }
       postgresql::server::database { 'ext_vtest':
         encoding => 'UTF8',
-      } ->
+      }
+    MANIFEST
+
+    apply_manifest(setup_pp, catch_failures: true)
+
+    # Check for available extensions and pick one to test with
+    ext, ver = discover_extension
+
+    # Extension ressource tested with explicit version
+    pp = <<-MANIFEST
       postgresql::server::extension { '#{ext}_v#{ver}':
         database  => 'ext_vtest',
         extension => '#{ext}',
@@ -30,9 +37,9 @@ describe 'postgresql::server::extension' do
       }
     MANIFEST
 
-    apply_manifest(pp, catch_failures: true, expect_changes: true)
+    apply_manifest(pp, expect_changes: true)
     expect(psql("-tA --command=\"SELECT extversion FROM pg_extension WHERE extname = '#{ext}'\" ext_vtest", 'postgres').stdout)
       .to include(ver)
-    apply_manifest(pp, catch_failures: true, expect_changes: false)
+    apply_manifest(pp, catch_changes: true)
   end
 end
