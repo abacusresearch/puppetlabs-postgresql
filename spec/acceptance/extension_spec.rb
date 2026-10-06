@@ -5,10 +5,13 @@ require 'spec_helper_acceptance'
 describe 'postgresql::server::extension' do
   # Choose a contrib extension that exists on this distro
   def discover_extension
-    q = 'SELECT name, default_version FROM pg_available_extensions ' \
+    q = 'SELECT name || \':\' || default_version FROM pg_available_extensions ' \
         "WHERE name IN ('unaccent', 'uuid-ossp', 'pgcrypto', 'hstore') ORDER BY name LIMIT 1"
-    ext, ver = psql("-At --command=\"#{q}\" postgres", 'postgres').stdout.strip.split(%r{\s+})
-    raise 'no contrib extension available on this platform' if ext.nil?
+    out = psql("-At --command=\"#{q}\" postgres", 'postgres').stdout.strip
+    raise 'no contrib extension available on this platform' if out.empty?
+
+    ext, ver = out.split(':', 2).map(&:strip)
+    raise "malformed discover_extension output: #{out.inspect}" if ext.nil? || ext.empty? || ver.nil? || ver.empty?
 
     [ext, ver]
   end
