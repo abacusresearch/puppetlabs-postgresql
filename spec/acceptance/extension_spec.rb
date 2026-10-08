@@ -32,6 +32,10 @@ describe 'postgresql::server::extension' do
 
     # Extension ressource tested with explicit version
     pp = <<-MANIFEST
+      class { 'postgresql::server': }
+      postgresql::server::database { 'ext_vtest':
+        encoding => 'UTF8',
+      }
       postgresql::server::extension { '#{ext}_v#{ver}':
         database  => 'ext_vtest',
         extension => '#{ext}',
